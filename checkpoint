@@ -1,2 +1,2 @@
-model_checkpoint_path: "C:\\Users\\Gleb\\PycharmProjects\\newNN\\model"
-all_model_checkpoint_paths: "C:\\Users\\Gleb\\PycharmProjects\\newNN\\model"
+model_checkpoint_path: "C:\\Users\\Gleb\\PycharmProjects\\nnWithBigrammAndKeywords\\model"
+all_model_checkpoint_paths: "C:\\Users\\Gleb\\PycharmProjects\\nnWithBigrammAndKeywords\\model"

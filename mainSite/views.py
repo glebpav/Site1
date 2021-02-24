@@ -1,69 +1,23 @@
 """ ----------------------  imports  ---------------------------- """
 
-
-
-
 from langdetect import detect
+import json
 
 from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import get_object_or_404
 from GoogleNews import GoogleNews
-from pygooglenews import GoogleNews as GN
 
 from .parser import *
 from .serializers import *
 from .models import *
-
-""" ----------------------  some settings  ---------------------------- """
-
-VOCAB_SIZE = 6500
-WEIGHT_OF_UNKNOWN_WORDS = 0.15
-INFLUENCE_OF_DESCRIPTION = 0.68
-WEIGHT_OF_THE_WORSE_WORDS = 0.50  # этот коэффициент уменьшает конечную тональность на заданную долю
-PAGE_NUM = 1  # количество страниц затрагиваемых при поиске новостей
-
-sites = {"лента ру", "рбк", "риа", "медуза"}  # список новостных ресурсов
+from .NeuralNetwork import *
+from .settings import *
 
 """ ----------------------- initialising variables -------------------- """
 
-
-f = open('vocab.txt', 'r')
-f1 = open('word_tone.txt', 'r')
-fileBadWords = open('badWordsVocab.txt', 'r')
-
-vocab = f.read().split()
-word_tone = f1.read().split()
-badWordsVocab = fileBadWords.read().split()
-
-token_2_idx = {vocab[i].replace(';', ''): i for i in range(VOCAB_SIZE)}
-word_token = {}
-badWordsDict = {}
-
-for word in word_tone:
-    mas = word.split(";")
-    dict = {mas[0]: mas[1]}
-    word_token.update(dict)
-
-for word in badWordsVocab:
-    badWordsDict.update({word: word})
-
-f.close()
-f1.close()
-fileBadWords.close()
-
-
-
-
-
-
-
-
-
-
-
-
+neuralNetwork = NeuralNetwork()
 
 
 def find(request):
@@ -71,9 +25,13 @@ def find(request):
         just_counter = 0
         theme = request.GET['them']
 
-        dataa = []
+        arrayToReturn = []
         googlenews = GoogleNews()
         seleniumParser = SeleniumParser()
+        articleTitleArray = ''
+        articleDescriptionArray = ''
+        articleMediaArray = ''
+        articleLinkArray = ''
 
         for site in sites:
             googlenews.clear()
@@ -81,97 +39,95 @@ def find(request):
             googlenews.search(theme + " " + site)
             googlenews.get_page(1)
             for result in googlenews.results():
-                try:
 
-                    description_of_article = [result["desc"]]
-                    title_of_article = [result["title"]]
-                    all_of_article = [result["title"] + result["desc"]]
-                    media = result["media"]
+                if sites.__contains__(result['media']):
+                    articleTitleArray += result['title'] + '<break>'
+                    articleDescriptionArray += result['desc'] + '<break>'
+                    articleMediaArray += result['media'] + '<break>'
+                    articleLinkArray += result['link'] + '<break>'
 
-                    if media != "Lenta" and media != "РИА Новости" and media != "РБК" and media != "Meduza": continue
+                """description_of_article = [result["desc"]]
+                title_of_article = [result["title"]]
+                all_of_article = [result["title"] + result["desc"]]
+                media = result["media"]
 
-                    if request.GET.get('q') is None:
-                        if media == "Lenta":
-                            seleniumParser.parseLenta(result["link"])
-                        if media == "Meduza":
-                            seleniumParser.parseMeduza(result["link"])
+                if media != "Lenta" and media != "РИА Новости" and media != "РБК" and media != "Meduza": continue
 
+                if request.GET.get('q') is None:
+                    if media == "Lenta":
+                        seleniumParser.parseLenta(result["link"])
+                    if media == "Meduza":
+                        seleniumParser.parseMeduza(result["link"])
 
-                    flagToBreak = False
-                    for item in dataa:
-                        if title_of_article[0] == item["title"]:
-                            flagToBreak = True
-                            break
-                    if flagToBreak: continue
+                flagToBreak = False
+                for item in dataa:
+                    if title_of_article[0] == item["title"]:
+                        flagToBreak = True
+                        break
+                if flagToBreak: continue
 
-                    tone = test_tweet(str(title_of_article))
-                    tone2 = test_tweet(str(description_of_article))
-                    tone3 = test_tweet(str(all_of_article))
-                    tone4 = test_article_better(str(title_of_article), str(description_of_article))
-                    tone5 = test_article_the_best(str(title_of_article), str(description_of_article))
-                    tone6 = test_article_the_best_modern(str(title_of_article), str(description_of_article))
+                # print(title_of_article)
+                # tone = test_tweet(str(title_of_article))
+                # tone2 = test_tweet(str(description_of_article))
+                # tone3 = test_tweet(str(all_of_article))
+                # tone4 = test_article_better(str(title_of_article), str(description_of_article))
+                tone5 = neuralNetwork.test_article_the_best(str(title_of_article), str(description_of_article))
+                tone6 = neuralNetwork.test_article_the_best_modern(str(title_of_article), str(description_of_article))
 
-                    if detect(result["desc"]) == 'ru' and request.GET.get('q') or not request.GET.get('q'):
-                        just_counter += 1
-                        dataa.append({"title": title_of_article[0], "description": description_of_article[0],
-                                      "url": result["link"],
-                                      "toneTitle": ("заголовок : " + tone),
-                                      "toneDescription": ("описание : " + tone2),
-                                      "toneAll": ("в общем : " + tone3),
-                                      "toneAve": ("тональность : " + tone4),
-                                      "toneAveBest": ("тональность : " + tone5[0]),
-                                      "toneWithBadWordsAveBest": ("тон с ПС: " + tone6[0]),
-                                      "typeBox": (tone5[1]),
-                                      "counter": just_counter})
-                except Exception:
-                    1
+                just_counter += 1
+                dataa.append({"title": title_of_article[0], "description": description_of_article[0],
+                              "url": result["link"],
+                              "toneTitle": ("заголовок : " + tone),
+                              "toneDescription": ("описание : " + tone2),
+                              "toneAll": ("в общем : " + tone3),
+                              "toneAve": ("тональность : " + tone4),
+                              "toneAveBest": ("тональность : " + tone5[0]),
+                              "toneWithBadWordsAveBest": ("тон с ПС: " + tone6[0]),
+                              "typeBox": (tone5[1]),
+                              "counter": just_counter})"""
 
-        data = {"message": dataa, "theme": theme}
-        if len(dataa) == 0:
+        lemmazAllArticles = myLemm.lemmatize(regex.sub('', articleTitleArray).lower() + "<end>" + regex.sub('', articleDescriptionArray))
+        articleTitleArrayLemma, articleDescriptionArrayLemma = (''.join(lemmazAllArticles)).split('<end>')
+        articleTitleArray = articleTitleArray.split('<break>')
+        articleDescriptionArray = articleDescriptionArray.split('<break>')
+
+        articleDescriptionArrayLemma = articleDescriptionArrayLemma.split('<break>')
+        articleTitleArrayLemma = articleTitleArrayLemma.split('<break>')
+        articleLinkArray = articleLinkArray.split('<break>')
+        countOfArticlse = len(articleTitleArray)
+        for i in range(countOfArticlse):
+            print(i)
+            # проверка на наличие такой же статьи
+            flagToBreak = False
+            for item in arrayToReturn:
+                if articleTitleArray[i] == item["title"]:
+                    flagToBreak = True
+                    break
+            if flagToBreak: continue
+
+            tone5 = neuralNetwork.test_article_the_best(str([articleTitleArrayLemma[i]]), str([articleDescriptionArrayLemma[i]]))
+            tone6 = neuralNetwork.test_article_the_best_modern(str([articleTitleArrayLemma[i]]), str([articleDescriptionArrayLemma[i]]))
+
+            just_counter += 1
+            arrayToReturn.append({"title": articleTitleArray[i], "description": articleDescriptionArray[i],
+                          "url": articleLinkArray[i],
+                          "toneAveBest": ("тональность : " + tone5[0]),
+                          "toneWithBadWordsAveBest": ("тон с ПС: " + tone6[0]),
+                          "typeBox": (tone5[1]),
+                          "counter": just_counter})
+
+        data = {"message": arrayToReturn, "theme": theme}
+        if len(arrayToReturn) == 0:
             return render(request, "mainSite/not_found_page.html", context=data)
 
         return render(request, "mainSite/showThems.html", context=data)
-
-
-class Top_News_view(APIView):
-
-    def get(self, request):
-        news = []
-
-        gn = GN(lang='ru')
-        top = gn.top_news()
-        for toper in top["entries"]:
-            print(toper["title"])
-            print((list(toper["links"])[0])["href"])
-            print()
-
-            item = News()
-
-            description_of_article = [toper["title"]]
-            title_of_article = [toper["title"]]
-
-            """tone = test_tweet(str(title_of_article))
-            tone2 = test_tweet(str(description_of_article))
-            tone3 = test_tweet(str(all_of_article))
-            tone4 = test_article_better(str(title_of_article), str(description_of_article))"""
-            tone5 = test_article_the_best_api(str(title_of_article), str(description_of_article))
-
-            item.title = title_of_article[0]
-            item.body = description_of_article[0]
-            item.url = (list(toper["links"])[0])["href"]
-            item.rating = tone5
-
-            news.append(item)
-
-        serializer = NewsSerializer(news, many=True)
-        return Response({"status": "ok", "news": serializer.data})
 
 
 def hello(request):
     return render(request, 'mainSite/index.html', context={})
 
 
-class News_view(APIView):
+class NewsView(APIView):
 
     def get(self, request, theme):
 
@@ -199,7 +155,7 @@ class News_view(APIView):
                         break
                 if flagToBreak: continue"""
 
-                tone5 = test_article_the_best_api(str(title_of_article), str(description_of_article))
+                tone5 = neuralNetwork.test_article_the_best_api(str(title_of_article), str(description_of_article))
 
                 item.title = title_of_article[0]
                 item.body = description_of_article[0]
@@ -220,7 +176,7 @@ class News_view(APIView):
             return Response({"success": "Article '{}' created successfully".format(article_saved.title)})
 
 
-class User_check(APIView):
+class UserCheck(APIView):
     def post(self, request):
         found_user_with_login = False
         checking_user = request.data.get("user")
@@ -239,7 +195,7 @@ class User_check(APIView):
             return Response({"status": "bad request", "trouble": "no user with such login"})
 
 
-class User_view(APIView):
+class UserView(APIView):
 
     def get(self, request):
         users = Person.objects.all()
