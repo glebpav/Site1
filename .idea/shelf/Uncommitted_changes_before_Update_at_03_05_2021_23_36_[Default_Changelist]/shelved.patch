@@ -1,0 +1,829 @@
+Index: mainSite/models.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from django.db import models\r\nimport json\r\n\r\n\r\nclass News(models.Model):\r\n    title = models.CharField(max_length=30)\r\n    body = models.CharField(max_length=1000)\r\n    url = models.CharField(max_length=100)\r\n    rating = models.CharField(max_length=10)\r\n\r\n    def __str__(self):\r\n        return self.title\r\n\r\nclass Person(models.Model):\r\n    id = models.AutoField(primary_key=True)\r\n    login = models.CharField(max_length=30)\r\n    name = models.CharField(max_length=30)\r\n    password = models.CharField(max_length=30)\r\n    themes = models.CharField(max_length=1000, default=None, blank=True, null=True)\r\n    history = models.CharField(max_length=1000, default=None, blank=True, null=True)\r\n\r\n    def __str__(self):\r\n        return self.name\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- mainSite/models.py	(revision 3095116b2c1bcee525efe9d74310149b575ed8af)
++++ mainSite/models.py	(date 1619977974770)
+@@ -1,6 +1,7 @@
+ from django.db import models
++
+ import json
+-
++from .settings import *
+ 
+ class News(models.Model):
+     title = models.CharField(max_length=30)
+@@ -11,6 +12,7 @@
+     def __str__(self):
+         return self.title
+ 
++
+ class Person(models.Model):
+     id = models.AutoField(primary_key=True)
+     login = models.CharField(max_length=30)
+@@ -18,6 +20,16 @@
+     password = models.CharField(max_length=30)
+     themes = models.CharField(max_length=1000, default=None, blank=True, null=True)
+     history = models.CharField(max_length=1000, default=None, blank=True, null=True)
++
++
++class Person_with_sites(models.Model):
++    id = models.AutoField(primary_key=True)
++    login = models.CharField(max_length=30)
++    name = models.CharField(max_length=30)
++    password = models.CharField(max_length=30)
++    themes = models.CharField(max_length=1000, default=None, blank=True, null=True)
++    sites = models.CharField(max_length=1000, default=DEFAULT_SITES_FOR_MOBILE)
++    history = models.CharField(max_length=1000, default=None, blank=True, null=True)
+ 
+     def __str__(self):
+         return self.name
+Index: mainSite/serializers.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from rest_framework import serializers\r\n\r\nfrom .models import *\r\n\r\n\r\nclass NewsSerializer(serializers.Serializer):\r\n    title = serializers.CharField(max_length=30)\r\n    body = serializers.CharField(max_length=1000)\r\n    url = serializers.CharField(max_length=100)\r\n    rating = serializers.CharField(max_length=10)\r\n\r\n\r\nclass UserSerializer(serializers.Serializer):\r\n    id = serializers.PrimaryKeyRelatedField(read_only=True)\r\n    login = serializers.CharField(max_length=30)\r\n    name = serializers.CharField(max_length=30)\r\n    password = serializers.CharField(max_length=30)\r\n    themes = serializers.CharField(max_length=1000, default=None, allow_blank=True)\r\n    history = serializers.CharField(max_length=1000, default=None, allow_blank=True)\r\n\r\n    def create(self, validated_data):\r\n        return Person.objects.create(**validated_data)\r\n\r\n    def update(self, instance, validated_data):\r\n        instance.login = validated_data.get('login', instance.login)\r\n        instance.name = validated_data.get('name', instance.name)\r\n        instance.password = validated_data.get('password', instance.password)\r\n        instance.themes = validated_data.get('themes', instance.themes)\r\n        instance.history = validated_data.get('history', instance.history)\r\n        instance.save()\r\n        return instance\r\n\r\n\r\nclass UserCheckerSerializer(serializers.Serializer):\r\n    login = serializers.CharField(max_length=30)\r\n    password = serializers.CharField(max_length=30)
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- mainSite/serializers.py	(revision 3095116b2c1bcee525efe9d74310149b575ed8af)
++++ mainSite/serializers.py	(date 1619864473184)
+@@ -31,6 +31,29 @@
+         return instance
+ 
+ 
++class UserWithSitesSerializer(serializers.Serializer):
++    id = serializers.PrimaryKeyRelatedField(read_only=True)
++    login = serializers.CharField(max_length=30)
++    name = serializers.CharField(max_length=30)
++    password = serializers.CharField(max_length=30)
++    themes = serializers.CharField(max_length=1000, default=None, allow_blank=True)
++    history = serializers.CharField(max_length=1000, default=None, allow_blank=True)
++    sites = serializers.CharField(max_length=1000, allow_blank=True, default=DEFAULT_SITES_FOR_MOBILE)
++
++    def create(self, validated_data):
++        return Person_with_sites.objects.create(**validated_data)
++
++    def update(self, instance, validated_data):
++        instance.login = validated_data.get('login', instance.login)
++        instance.name = validated_data.get('name', instance.name)
++        instance.password = validated_data.get('password', instance.password)
++        instance.themes = validated_data.get('themes', instance.themes)
++        instance.history = validated_data.get('history', instance.history)
++        instance.sites = validated_data.get('sites', instance.sites)
++        instance.save()
++        return instance
++
++
+ class UserCheckerSerializer(serializers.Serializer):
+     login = serializers.CharField(max_length=30)
+-    password = serializers.CharField(max_length=30)
+\ No newline at end of file
++    password = serializers.CharField(max_length=30)
+Index: mainSite/views.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>\"\"\" ----------------------  imports  ---------------------------- \"\"\"\r\n\r\nfrom langdetect import detect\r\nimport json\r\n\r\nfrom django.shortcuts import render\r\nfrom rest_framework.response import Response\r\nfrom rest_framework.views import APIView\r\nfrom rest_framework.generics import get_object_or_404\r\nfrom GoogleNews import GoogleNews\r\n\r\nfrom .parser import *\r\nfrom .serializers import *\r\nfrom .models import *\r\nfrom .NeuralNetwork import *\r\nfrom .settings import *\r\n\r\n\"\"\" ----------------------- initialising variables -------------------- \"\"\"\r\n\r\nneuralNetwork = NeuralNetwork()\r\n\r\n\r\ndef find(request):\r\n    if request.method == 'GET':\r\n        just_counter = 0\r\n        theme = request.GET['them']\r\n\r\n        arrayToReturn = []\r\n        googlenews = GoogleNews()\r\n        seleniumParser = SeleniumParser()\r\n        articleTitleArray = ''\r\n        articleDescriptionArray = ''\r\n        articleMediaArray = ''\r\n        articleLinkArray = ''\r\n\r\n        for site in sites:\r\n            googlenews.clear()\r\n            googlenews = GoogleNews(lang='ru')\r\n            googlenews.search(theme + \" \" + site)\r\n            googlenews.get_page(1)\r\n            for result in googlenews.results():\r\n\r\n                if sites.__contains__(result['media']):\r\n                    articleTitleArray += result['title'] + '<break>'\r\n                    articleDescriptionArray += result['desc'] + '<break>'\r\n                    articleMediaArray += result['media'] + '<break>'\r\n                    articleLinkArray += result['link'] + '<break>'\r\n\r\n                \"\"\"description_of_article = [result[\"desc\"]]\r\n                title_of_article = [result[\"title\"]]\r\n                all_of_article = [result[\"title\"] + result[\"desc\"]]\r\n                media = result[\"media\"]\r\n\r\n                if media != \"Lenta\" and media != \"РИА Новости\" and media != \"РБК\" and media != \"Meduza\": continue\r\n\r\n                if request.GET.get('q') is None:\r\n                    if media == \"Lenta\":\r\n                        seleniumParser.parseLenta(result[\"link\"])\r\n                    if media == \"Meduza\":\r\n                        seleniumParser.parseMeduza(result[\"link\"])\r\n\r\n                flagToBreak = False\r\n                for item in dataa:\r\n                    if title_of_article[0] == item[\"title\"]:\r\n                        flagToBreak = True\r\n                        break\r\n                if flagToBreak: continue\r\n\r\n                # print(title_of_article)\r\n                # tone = test_tweet(str(title_of_article))\r\n                # tone2 = test_tweet(str(description_of_article))\r\n                # tone3 = test_tweet(str(all_of_article))\r\n                # tone4 = test_article_better(str(title_of_article), str(description_of_article))\r\n                tone5 = neuralNetwork.test_article_the_best(str(title_of_article), str(description_of_article))\r\n                tone6 = neuralNetwork.test_article_the_best_modern(str(title_of_article), str(description_of_article))\r\n\r\n                just_counter += 1\r\n                dataa.append({\"title\": title_of_article[0], \"description\": description_of_article[0],\r\n                              \"url\": result[\"link\"],\r\n                              \"toneTitle\": (\"заголовок : \" + tone),\r\n                              \"toneDescription\": (\"описание : \" + tone2),\r\n                              \"toneAll\": (\"в общем : \" + tone3),\r\n                              \"toneAve\": (\"тональность : \" + tone4),\r\n                              \"toneAveBest\": (\"тональность : \" + tone5[0]),\r\n                              \"toneWithBadWordsAveBest\": (\"тон с ПС: \" + tone6[0]),\r\n                              \"typeBox\": (tone5[1]),\r\n                              \"counter\": just_counter})\"\"\"\r\n\r\n        lemmazAllArticles = myLemm.lemmatize(regex.sub('', articleTitleArray).lower() + \"<end>\" + regex.sub('', articleDescriptionArray))\r\n        articleTitleArrayLemma, articleDescriptionArrayLemma = (''.join(lemmazAllArticles)).split('<end>')\r\n        articleTitleArray = articleTitleArray.split('<break>')\r\n        articleDescriptionArray = articleDescriptionArray.split('<break>')\r\n\r\n        articleDescriptionArrayLemma = articleDescriptionArrayLemma.split('<break>')\r\n        articleTitleArrayLemma = articleTitleArrayLemma.split('<break>')\r\n        articleLinkArray = articleLinkArray.split('<break>')\r\n        countOfArticlse = len(articleTitleArray)\r\n        for i in range(countOfArticlse):\r\n            print(i)\r\n            # проверка на наличие такой же статьи\r\n            flagToBreak = False\r\n            for item in arrayToReturn:\r\n                if articleTitleArray[i] == item[\"title\"]:\r\n                    flagToBreak = True\r\n                    break\r\n            if flagToBreak: continue\r\n\r\n            tone5 = neuralNetwork.test_article_the_best(str([articleTitleArrayLemma[i]]), str([articleDescriptionArrayLemma[i]]))\r\n            tone6 = neuralNetwork.test_article_the_best_modern(str([articleTitleArrayLemma[i]]), str([articleDescriptionArrayLemma[i]]))\r\n\r\n            just_counter += 1\r\n            arrayToReturn.append({\"title\": articleTitleArray[i], \"description\": articleDescriptionArray[i],\r\n                          \"url\": articleLinkArray[i],\r\n                          \"toneAveBest\": (\"тональность : \" + tone5[0]),\r\n                          \"toneWithBadWordsAveBest\": (\"тон с ПС: \" + tone6[0]),\r\n                          \"typeBox\": (tone5[1]),\r\n                          \"counter\": just_counter})\r\n\r\n        data = {\"message\": arrayToReturn, \"theme\": theme}\r\n        if len(arrayToReturn) == 0:\r\n            return render(request, \"mainSite/not_found_page.html\", context=data)\r\n\r\n        return render(request, \"mainSite/showThems.html\", context=data)\r\n\r\n\r\ndef hello(request):\r\n    return render(request, 'mainSite/index.html', context={})\r\n\r\n\r\nclass NewsView(APIView):\r\n\r\n    def get(self, request, theme):\r\n\r\n        news = []\r\n        googlenews = GoogleNews(lang='ru')\r\n\r\n        for site in sites:\r\n\r\n            googlenews.search(theme + \" \" + site)\r\n            googlenews.get_page(1)\r\n\r\n            for result in googlenews.results():\r\n                item = News()\r\n\r\n                description_of_article = [result[\"desc\"]]\r\n                title_of_article = [result[\"title\"]]\r\n                media = result[\"media\"]\r\n\r\n                if media != \"Lenta\" and media != \"РИА Новости\" and media != \"РБК\" and media != \"Meduza\": continue\r\n\r\n                \"\"\"flagToBreak = False\r\n                for item in dataa:\r\n                    if title_of_article[0] == item[\"title\"]:\r\n                        flagToBreak = True\r\n                        break\r\n                if flagToBreak: continue\"\"\"\r\n\r\n                tone5 = neuralNetwork.test_article_the_best_api(str(title_of_article), str(description_of_article))\r\n\r\n                item.title = title_of_article[0]\r\n                item.body = description_of_article[0]\r\n                item.url = result[\"link\"]\r\n                item.rating = tone5\r\n\r\n                news.append(item)\r\n\r\n            serializer = NewsSerializer(news, many=True)\r\n            return Response({\"status\": \"ok\", \"news\": serializer.data})\r\n\r\n        def post(self, request):\r\n            article = request.data.get('article')\r\n            # Create an article from the above data\r\n            serializer = NewsSerializer(data=article)\r\n            if serializer.is_valid(raise_exception=True):\r\n                article_saved = serializer.save()\r\n            return Response({\"success\": \"Article '{}' created successfully\".format(article_saved.title)})\r\n\r\n\r\nclass UserCheck(APIView):\r\n    def post(self, request):\r\n        found_user_with_login = False\r\n        checking_user = request.data.get(\"user\")\r\n        users = Person.objects.all()\r\n\r\n        for user in users:\r\n            if user.login == checking_user[\"login\"]:\r\n                found_user_with_login = True\r\n                if user.password == checking_user[\"password\"]:\r\n                    serializer = UserSerializer(user)\r\n                    return Response({\"status\": \"ok\", \"user\": serializer.data})\r\n\r\n        if found_user_with_login:\r\n            return Response({\"status\": \"bad request\", \"trouble\": \"password is incorrect\"})\r\n        else:\r\n            return Response({\"status\": \"bad request\", \"trouble\": \"no user with such login\"})\r\n\r\n\r\nclass UserView(APIView):\r\n\r\n    def get(self, request):\r\n        users = Person.objects.all()\r\n        serializer = UserSerializer(users, many=True)\r\n        return Response({\"users\": serializer.data})\r\n\r\n    def post(self, request):\r\n        user_checking = request.data.get(\"user\")\r\n        serializer = UserSerializer(data=user_checking)\r\n        if serializer.is_valid(raise_exception=True):\r\n            users = Person.objects.all()\r\n            for user in users:\r\n                if user.login == user_checking[\"login\"]:\r\n                    return Response({\"status\": \"bad response\", \"trouble\": \"User with such login is already exists\"})\r\n\r\n        serializer.save()\r\n        return Response({\"status\": \"ok\"})\r\n\r\n    def put(self, request, pk):\r\n        saved_article = get_object_or_404(Person.objects.all(), pk=pk)\r\n        data = request.data.get('user')\r\n        serializer = UserSerializer(instance=saved_article, data=data, partial=True)\r\n        if serializer.is_valid(raise_exception=True):\r\n            user_saved = serializer.save()\r\n        return Response({\r\n            \"status\": \"ok\", \"user\": serializer.data\r\n        })\r\n\r\n    def delete(self, request, pk):\r\n        # Get object with this pk\r\n        article = get_object_or_404(Person.objects.all(), pk=pk)\r\n        article.delete()\r\n        return Response({\r\n            \"message\": \"Person with id `{}` has been deleted.\".format(pk)\r\n        }, status=204)\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- mainSite/views.py	(revision 3095116b2c1bcee525efe9d74310149b575ed8af)
++++ mainSite/views.py	(date 1620073954622)
+@@ -1,13 +1,10 @@
+ """ ----------------------  imports  ---------------------------- """
+-
+-from langdetect import detect
+-import json
+-
+ from django.shortcuts import render
+ from rest_framework.response import Response
+ from rest_framework.views import APIView
+ from rest_framework.generics import get_object_or_404
+ from GoogleNews import GoogleNews
++from pygooglenews import GoogleNews as GN
+ 
+ from .parser import *
+ from .serializers import *
+@@ -24,7 +21,6 @@
+     if request.method == 'GET':
+         just_counter = 0
+         theme = request.GET['them']
+-
+         arrayToReturn = []
+         googlenews = GoogleNews()
+         seleniumParser = SeleniumParser()
+@@ -39,7 +35,6 @@
+             googlenews.search(theme + " " + site)
+             googlenews.get_page(1)
+             for result in googlenews.results():
+-
+                 if sites.__contains__(result['media']):
+                     articleTitleArray += result['title'] + '<break>'
+                     articleDescriptionArray += result['desc'] + '<break>'
+@@ -86,17 +81,18 @@
+                               "typeBox": (tone5[1]),
+                               "counter": just_counter})"""
+ 
+-        lemmazAllArticles = myLemm.lemmatize(regex.sub('', articleTitleArray).lower() + "<end>" + regex.sub('', articleDescriptionArray))
++        lemmazAllArticles = myLemm.lemmatize(
++            regex.sub('', articleTitleArray).lower() + "<end>" + regex.sub('', articleDescriptionArray))
+         articleTitleArrayLemma, articleDescriptionArrayLemma = (''.join(lemmazAllArticles)).split('<end>')
+         articleTitleArray = articleTitleArray.split('<break>')
+         articleDescriptionArray = articleDescriptionArray.split('<break>')
++        articleMediaArray = articleMediaArray.split('<break>')
+ 
+         articleDescriptionArrayLemma = articleDescriptionArrayLemma.split('<break>')
+         articleTitleArrayLemma = articleTitleArrayLemma.split('<break>')
+         articleLinkArray = articleLinkArray.split('<break>')
+         countOfArticlse = len(articleTitleArray)
+         for i in range(countOfArticlse):
+-            print(i)
+             # проверка на наличие такой же статьи
+             flagToBreak = False
+             for item in arrayToReturn:
+@@ -105,22 +101,114 @@
+                     break
+             if flagToBreak: continue
+ 
+-            tone5 = neuralNetwork.test_article_the_best(str([articleTitleArrayLemma[i]]), str([articleDescriptionArrayLemma[i]]))
+-            tone6 = neuralNetwork.test_article_the_best_modern(str([articleTitleArrayLemma[i]]), str([articleDescriptionArrayLemma[i]]))
+-
++            textToAlize = 'null'
++            if request.GET.get('q') is None:
++                if articleMediaArray[i] == "Lenta":
++                    textToAlize=seleniumParser.parse_lenta(articleLinkArray[i])
++                elif articleMediaArray[i] == "Meduza":
++                    textToAlize=seleniumParser.parse_meduza(articleLinkArray[i])
++                elif articleMediaArray[i] == "РИА Новости":
++                    textToAlize=seleniumParser.parse_ria(articleLinkArray[i])
++                if textToAlize != 'null':
++                    textToAlize = myLemm.lemmatize(regex.sub('', textToAlize).lower())
++                    tone5 = neuralNetwork.test_article_the_best(str([textToAlize]), str([textToAlize]))
++                else:
++                    tone5 = neuralNetwork.test_article_the_best(str([articleTitleArrayLemma[i]]),
++                                                                str([articleDescriptionArrayLemma[i]]))
++            else:
++                tone5 = neuralNetwork.test_article_the_best(str([articleTitleArrayLemma[i]]),
++                                                        str([articleDescriptionArrayLemma[i]]))
++            print(articleTitleArrayLemma[i])
++            tone6 = neuralNetwork.test_article_the_best_modern(str([articleTitleArrayLemma[i]]),
++                                                               str([articleDescriptionArrayLemma[i]]))
+             just_counter += 1
+-            arrayToReturn.append({"title": articleTitleArray[i], "description": articleDescriptionArray[i],
+-                          "url": articleLinkArray[i],
+-                          "toneAveBest": ("тональность : " + tone5[0]),
+-                          "toneWithBadWordsAveBest": ("тон с ПС: " + tone6[0]),
+-                          "typeBox": (tone5[1]),
+-                          "counter": just_counter})
++            arrayToReturn.append({"title": articleTitleArray[i],
++                                  "description": articleDescriptionArray[i],
++                                  "url": articleLinkArray[i],
++                                  "toneAveBest": ("тональность : " + tone5[0]),
++                                  "toneWithBadWordsAveBest": ("тон с ПС: " + tone6[0]),
++                                  "typeBox": (tone5[1]),
++                                  "counter": just_counter})
+ 
+-        data = {"message": arrayToReturn, "theme": theme}
+         if len(arrayToReturn) == 0:
+-            return render(request, "mainSite/not_found_page.html", context=data)
++            return render(request, "mainSite/not_found_page.html", context={"message": arrayToReturn, "theme": theme})
++        return render(request, "mainSite/showThems.html", context={"message": arrayToReturn, "theme": theme})
++
++
++class Top_News_view(APIView):
++
++    def get(self, request):
++        """news = []
++        gn = GN(lang='ru')
++        top = gn.top_news()
++        for toper in top["entries"]:
++            print(toper["title"])
++            print((list(toper["links"])[0])["href"])
++            print()
++
++            item = News()
++
++            description_of_article = [toper["title"]]
++            title_of_article = [toper["title"]]
++
++            tone = test_tweet(str(title_of_article))
++            tone2 = test_tweet(str(description_of_article))
++            tone3 = test_tweet(str(all_of_article))
++            tone4 = test_article_better(str(title_of_article), str(description_of_article))
++            tone5 = test_article_the_best_api(str(title_of_article), str(description_of_article))
++
++            item.title = title_of_article[0]
++            item.body = description_of_article[0]
++            item.url = (list(toper["links"])[0])["href"]
++            item.rating = tone5
++
++            news.append(item)
++
++        serializer = NewsSerializer(news, many=True)
++        return Response({"status": "ok", "news": serializer.data})"""
++
++        news = []
+ 
+-        return render(request, "mainSite/showThems.html", context=data)
++        arrayToReturn = []
++        articleTitleArray = ''
++        articleLinkArray = ''
++
++        gn = GN(lang='ru')
++        top = gn.top_news()
++        for toper in top["entries"]:
++            print(toper["title"])
++            print((list(toper["links"])[0])["href"])
++            print()
++
++            item = News()
++
++            articleTitleArray += toper["title"] + '<break>'
++            articleLinkArray += (list(toper["links"])[0])["href"] + '<break>'
++
++        print('out of for')
++        lemmazAllArticles = myLemm.lemmatize(regex.sub('', articleTitleArray).lower())
++        articleTitleArrayLemma = ''.join(lemmazAllArticles)
++        articleTitleArray = articleTitleArray.split('<break>')
++        print()
++        articleTitleArrayLemma = articleTitleArrayLemma.split('<break>')
++        articleLinkArray = articleLinkArray.split('<break>')
++        print(" size of lemm = " + str(len(articleTitleArrayLemma)))
++        for i in range(len(articleTitleArrayLemma)):
++            print("articleTitleArray[i]")
++            print(articleTitleArray[i])
++            tone5 = neuralNetwork.test_article_the_best_api(articleTitleArrayLemma[i], articleTitleArrayLemma[i])
++
++            item = News()
++
++            item.title = articleTitleArray[i]
++            item.body = articleTitleArray[i]
++            item.url = articleLinkArray[i]
++            item.rating = tone5
++
++            news.append(item)
++
++        serializer = NewsSerializer(news, many=True)
++        return Response({"status": "ok", "news": serializer.data})
+ 
+ 
+ def hello(request):
+@@ -130,30 +218,84 @@
+ class NewsView(APIView):
+ 
+     def get(self, request, theme):
+-
++        print(theme)
+         news = []
+-        googlenews = GoogleNews(lang='ru')
++        googlenews = GoogleNews()
++        arrayToReturn = []
++        articleTitleArray = ''
++        articleDescriptionArray = ''
++        articleMediaArray = ''
++        articleLinkArray = ''
++        for site in sites:
++            googlenews.clear()
++            googlenews = GoogleNews(lang='ru')
++            googlenews.search(theme + " " + site)
++            googlenews.get_page(PAGE_NUM)
++            for result in googlenews.results():
++                if sites.__contains__(result['media']):
++                    articleTitleArray += result['title'] + '<break>'
++                    articleDescriptionArray += result['desc'] + '<break>'
++                    articleMediaArray += result['media'] + '<break>'
++                    articleLinkArray += result['link'] + '<break>'
++        print('out of for')
++        lemmazAllArticles = myLemm.lemmatize(
++            regex.sub('', articleTitleArray).lower() + "<end>" + regex.sub('', articleDescriptionArray))
++        articleTitleArrayLemma, articleDescriptionArrayLemma = (''.join(lemmazAllArticles)).split('<end>')
++        articleTitleArray = articleTitleArray.split('<break>')
++        articleDescriptionArray = articleDescriptionArray.split('<break>')
++
++        articleDescriptionArrayLemma = articleDescriptionArrayLemma.split('<break>')
++        articleTitleArrayLemma = articleTitleArrayLemma.split('<break>')
++        articleLinkArray = articleLinkArray.split('<break>')
++        countOfArticlse = len(articleTitleArray)
++
++        for i in range(countOfArticlse):
++            # проверка на наличие такой же статьи
++
++            flagToBreak = False
++            for item in arrayToReturn:
++                if articleTitleArray[i] == item["title"]:
++                    flagToBreak = True
++                    break
++            if flagToBreak or articleTitleArray[i] == '\n' : continue
+ 
++            print(articleTitleArray[i])
++            tone5 = neuralNetwork.test_article_the_best_api(str([articleTitleArrayLemma[i]]),
++                                                        str([articleDescriptionArrayLemma[i]]))
++            # tone6 = neuralNetwork.test_article_the_best_modern(str([articleTitleArrayLemma[i]]),
++            #                                                   str([articleDescriptionArrayLemma[i]]))
++
++            item = News()
++
++            item.title = articleTitleArray[i]
++            item.body = articleDescriptionArray[i]
++            item.url = articleLinkArray[i]
++            item.rating = tone5
++
++            news.append(item)
++        #print(news)
++        serializer = NewsSerializer(news, many=True)
++        print(serializer.data)
++        return Response({"status": "ok", "news": serializer.data})
++
++        """news = []
++        googlenews = GoogleNews(lang='ru')
+         for site in sites:
+-
+             googlenews.search(theme + " " + site)
+-            googlenews.get_page(1)
+-
++            googlenews.get_page(PAGE_NUM)
+             for result in googlenews.results():
+                 item = News()
+-
+                 description_of_article = [result["desc"]]
+                 title_of_article = [result["title"]]
+                 media = result["media"]
+-
+                 if media != "Lenta" and media != "РИА Новости" and media != "РБК" and media != "Meduza": continue
+ 
+-                """flagToBreak = False
++                flagToBreak = False
+                 for item in dataa:
+                     if title_of_article[0] == item["title"]:
+                         flagToBreak = True
+                         break
+-                if flagToBreak: continue"""
++                if flagToBreak: continue
+ 
+                 tone5 = neuralNetwork.test_article_the_best_api(str(title_of_article), str(description_of_article))
+ 
+@@ -165,8 +307,116 @@
+                 news.append(item)
+ 
+             serializer = NewsSerializer(news, many=True)
+-            return Response({"status": "ok", "news": serializer.data})
++            return Response({"status": "ok", "news": serializer.data})"""
++
++        def post(self, request):
++            article = request.data.get('article')
++            # Create an article from the above data
++            serializer = NewsSerializer(data=article)
++            if serializer.is_valid(raise_exception=True):
++                article_saved = serializer.save()
++            return Response({"success": "Article '{}' created successfully".format(article_saved.title)})
++
++
++class NewsViewWithThemes(APIView):
++
++    def get(self, request, theme, pk):
++        saved_article = get_object_or_404(Person_with_sites.objects.all(), pk=pk)
++        sites_array = saved_article.sites.split(";")
++        news = []
++        googlenews = GoogleNews()
++        arrayToReturn = []
++        articleTitleArray = ''
++        articleDescriptionArray = ''
++        articleMediaArray = ''
++        articleLinkArray = ''
++        for site in sites_array:
++            if not sites_array.__contains__(site):
++                continue
++            googlenews.clear()
++            googlenews = GoogleNews(lang='ru')
++            googlenews.search(theme + " " + site)
++            for page_num in range(5):
++                googlenews.get_page(page_num)
++                for result in googlenews.results():
++                    if sites_array.__contains__(result['media']):
++                        articleTitleArray += result['title'] + '<break>'
++                        articleDescriptionArray += result['desc'] + '<break>'
++                        articleMediaArray += result['media'] + '<break>'
++                        articleLinkArray += result['link'] + '<break>'
++        print('out of for')
++        lemmazAllArticles = myLemm.lemmatize(
++            regex.sub('', articleTitleArray).lower() + "<end>" + regex.sub('', articleDescriptionArray))
++        articleTitleArrayLemma, articleDescriptionArrayLemma = (''.join(lemmazAllArticles)).split('<end>')
++        articleTitleArray = articleTitleArray.split('<break>')
++        articleDescriptionArray = articleDescriptionArray.split('<break>')
++
++        articleDescriptionArrayLemma = articleDescriptionArrayLemma.split('<break>')
++        articleTitleArrayLemma = articleTitleArrayLemma.split('<break>')
++        articleLinkArray = articleLinkArray.split('<break>')
++        countOfArticlse = len(articleTitleArray)
++
++        for i in range(countOfArticlse):
++            # проверка на наличие такой же статьи
++            flagToBreak = False
++            for item in news:
++                #print(articleTitleArray[i] + " --- " + item.title)
++                if articleTitleArray[i] == item.title:
++                    print( articleTitleArray[i] + " --- " + item.title)
++                    flagToBreak = True
++                    break
++            if flagToBreak or articleTitleArray[i] == '' : continue
++
++            #print(articleTitleArray[i])
++            tone5 = neuralNetwork.test_article_the_best_api(str([articleTitleArrayLemma[i]]),
++                                                        str([articleDescriptionArrayLemma[i]]))
++            # tone6 = neuralNetwork.test_article_the_best_modern(str([articleTitleArrayLemma[i]]),
++            #                                                   str([articleDescriptionArrayLemma[i]]))
++
++            item = News()
++
++            item.title = articleTitleArray[i]
++            item.body = articleDescriptionArray[i]
++            item.url = articleLinkArray[i]
++            item.rating = tone5
++
++            news.append(item)
++        #print(news)
++        serializer = NewsSerializer(news, many=True)
++        #print(serializer.data)
++        return Response({"status": "ok", "news": serializer.data})
+ 
++        """news = []
++        googlenews = GoogleNews(lang='ru')
++        for site in sites:
++            googlenews.search(theme + " " + site)
++            googlenews.get_page(PAGE_NUM)
++            for result in googlenews.results():
++                item = News()
++                description_of_article = [result["desc"]]
++                title_of_article = [result["title"]]
++                media = result["media"]
++                if media != "Lenta" and media != "РИА Новости" and media != "РБК" and media != "Meduza": continue
++
++                flagToBreak = False
++                for item in dataa:
++                    if title_of_article[0] == item["title"]:
++                        flagToBreak = True
++                        break
++                if flagToBreak: continue
++
++                tone5 = neuralNetwork.test_article_the_best_api(str(title_of_article), str(description_of_article))
++
++                item.title = title_of_article[0]
++                item.body = description_of_article[0]
++                item.url = result["link"]
++                item.rating = tone5
++
++                news.append(item)
++
++            serializer = NewsSerializer(news, many=True)
++            return Response({"status": "ok", "news": serializer.data})"""
++
+         def post(self, request):
+             article = request.data.get('article')
+             # Create an article from the above data
+@@ -180,13 +430,13 @@
+     def post(self, request):
+         found_user_with_login = False
+         checking_user = request.data.get("user")
+-        users = Person.objects.all()
++        users = Person_with_sites.objects.all()
+ 
+         for user in users:
+             if user.login == checking_user["login"]:
+                 found_user_with_login = True
+                 if user.password == checking_user["password"]:
+-                    serializer = UserSerializer(user)
++                    serializer = UserWithSitesSerializer(user)
+                     return Response({"status": "ok", "user": serializer.data})
+ 
+         if found_user_with_login:
+@@ -198,15 +448,17 @@
+ class UserView(APIView):
+ 
+     def get(self, request):
+-        users = Person.objects.all()
+-        serializer = UserSerializer(users, many=True)
++        users = Person_with_sites.objects.all()
++        serializer = UserWithSitesSerializer(users, many=True)
+         return Response({"users": serializer.data})
+ 
+     def post(self, request):
+         user_checking = request.data.get("user")
+-        serializer = UserSerializer(data=user_checking)
++        serializer = UserWithSitesSerializer(data=user_checking)
++        serializer.sites = DEFAULT_SITES_FOR_MOBILE
++        print(serializer.sites)
+         if serializer.is_valid(raise_exception=True):
+-            users = Person.objects.all()
++            users = Person_with_sites.objects.all()
+             for user in users:
+                 if user.login == user_checking["login"]:
+                     return Response({"status": "bad response", "trouble": "User with such login is already exists"})
+@@ -215,18 +467,18 @@
+         return Response({"status": "ok"})
+ 
+     def put(self, request, pk):
+-        saved_article = get_object_or_404(Person.objects.all(), pk=pk)
++        saved_article = get_object_or_404(Person_with_sites.objects.all(), pk=pk)
+         data = request.data.get('user')
+-        serializer = UserSerializer(instance=saved_article, data=data, partial=True)
++        serializer = UserWithSitesSerializer(instance=saved_article, data=data, partial=True)
+         if serializer.is_valid(raise_exception=True):
+-            user_saved = serializer.save()
++            serializer.save()
+         return Response({
+             "status": "ok", "user": serializer.data
+         })
+ 
+     def delete(self, request, pk):
+         # Get object with this pk
+-        article = get_object_or_404(Person.objects.all(), pk=pk)
++        article = get_object_or_404(Person_with_sites.objects.all(), pk=pk)
+         article.delete()
+         return Response({
+             "message": "Person with id `{}` has been deleted.".format(pk)
+Index: mainSite/urls.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>\r\nfrom django.urls import path, include\r\n\r\nfrom .views import *\r\n\r\nurlpatterns = [\r\n    path('', hello),\r\n    path('themFind/', find),\r\n    path('news/', NewsView.as_view()),\r\n    path('news/<theme>/', NewsView.as_view()),\r\n    path('user_check/', UserCheck.as_view()),\r\n    path('users/<int:pk>', UserView.as_view()),\r\n    path('users/', UserView.as_view()),\r\n]\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- mainSite/urls.py	(revision 3095116b2c1bcee525efe9d74310149b575ed8af)
++++ mainSite/urls.py	(date 1619983535344)
+@@ -6,9 +6,14 @@
+ urlpatterns = [
+     path('', hello),
+     path('themFind/', find),
+-    path('news/', NewsView.as_view()),
+-    path('news/<theme>/', NewsView.as_view()),
+-    path('user_check/', UserCheck.as_view()),
+-    path('users/<int:pk>', UserView.as_view()),
+-    path('users/', UserView.as_view()),
++    path('news/',              NewsView.as_view()),
++    path('news/<theme>/',      NewsView.as_view()),
++    path('news/<theme>/<int:pk>',NewsViewWithThemes.as_view()),
++    path('users/',             UserView.as_view()),
++    path('add_theme/<int:pk>', UserView.as_view()),
++    path('users/<int:pk>',     UserView.as_view()),
++    path('user_check/',        UserCheck.as_view()),
++    path('top_news/',      Top_News_view.as_view()),
++
+ ]
++
+Index: mainSite/settings.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>\"\"\" ----------------------  some settings  ---------------------------- \"\"\"\r\n\r\nWORDS_VOCAB_SIZE = 7000\r\nBIGRAMMS_VOCAB_SIZE = 7000\r\n\r\nWEIGHT_OF_UNKNOWN_WORDS = 0.15\r\nINFLUENCE_OF_DESCRIPTION = 0.68\r\nWEIGHT_OF_THE_WORSE_WORDS = 0.50  # этот коэффициент уменьшает конечную тональность на заданную долю\r\nPAGE_NUM = 1  # количество страниц затрагиваемых при поиске новостей\r\n\r\n\r\nWORDS_VOCAB_PATH = 'words_vocab.txt'\r\nBIGRAMMS_VOCAB_PATH = 'bigrammVocab.txt'\r\nBAD_WORDS_VOCAB_PATH = 'badWordsVocab.txt'\r\n\r\nsites = {\"Lenta\", \"РИА Новости\", \"РБК\", \"Meduza\"}  # список новостных ресурсов\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- mainSite/settings.py	(revision 3095116b2c1bcee525efe9d74310149b575ed8af)
++++ mainSite/settings.py	(date 1619285777837)
+@@ -13,4 +13,5 @@
+ BIGRAMMS_VOCAB_PATH = 'bigrammVocab.txt'
+ BAD_WORDS_VOCAB_PATH = 'badWordsVocab.txt'
+ 
++DEFAULT_SITES_FOR_MOBILE = "Lenta;РИА Новости;РБК;Meduza"   # список сайтов, добавляемых каждому новому пользователю
+ sites = {"Lenta", "РИА Новости", "РБК", "Meduza"}  # список новостных ресурсов
+Index: mainSite/admin.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from django.contrib import admin\r\n\r\nfrom .models import News, Person\r\n\r\nadmin.site.register(News)\r\nadmin.site.register(Person)\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- mainSite/admin.py	(revision 3095116b2c1bcee525efe9d74310149b575ed8af)
++++ mainSite/admin.py	(date 1619286780852)
+@@ -1,6 +1,7 @@
+ from django.contrib import admin
+ 
+-from .models import News, Person
++from .models import News, Person, Person_with_sites
+ 
+ admin.site.register(News)
+ admin.site.register(Person)
++admin.site.register(Person_with_sites)
+Index: .idea/csv-plugin.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- .idea/csv-plugin.xml	(date 1614240221765)
++++ .idea/csv-plugin.xml	(date 1614240221765)
+@@ -0,0 +1,23 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="CsvFileAttributes">
++    <option name="attributeMap">
++      <map>
++        <entry key="\mainSite\parser.py">
++          <value>
++            <Attribute>
++              <option name="separator" value="," />
++            </Attribute>
++          </value>
++        </entry>
++        <entry key="\mainSite\views.py">
++          <value>
++            <Attribute>
++              <option name="separator" value=":" />
++            </Attribute>
++          </value>
++        </entry>
++      </map>
++    </option>
++  </component>
++</project>
+\ No newline at end of file
+Index: mainSite/parser.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from selenium import webdriver\r\n\r\n\r\nclass SeleniumParser():\r\n\r\n    def parseLenta(self, url):\r\n        articleText = self.parseSite(url=url, className=\"js-topic__text\")\r\n        print(articleText)\r\n        return articleText.text\r\n\r\n    def parseMeduza(self, url):\r\n        print(\"Stating Meduza parser\")\r\n        articleText = self.parseSite(url=url, className=\"GeneralMaterial-container\")\r\n        print(articleText)\r\n        return articleText\r\n\r\n    def parseSite(self, url, className):\r\n        print(\"Stating Default parser\")\r\n        driver = webdriver.Chrome()\r\n        driver.get(url)\r\n        allText = driver.find_element_by_class_name(className).text\r\n        driver.quit()\r\n        return allText\r\n\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- mainSite/parser.py	(revision 3095116b2c1bcee525efe9d74310149b575ed8af)
++++ mainSite/parser.py	(date 1619284786620)
+@@ -1,24 +1,42 @@
++from selenium.webdriver.chrome.options import Options
+ from selenium import webdriver
+ 
+ 
+-class SeleniumParser():
++class SeleniumParser:
+ 
+-    def parseLenta(self, url):
+-        articleText = self.parseSite(url=url, className="js-topic__text")
+-        print(articleText)
+-        return articleText.text
++    def parse_lenta(self, url):
++        article_text = self.parse_site(url=url, className="js-topic__text")
++        print(article_text)
++        return article_text
+ 
+-    def parseMeduza(self, url):
++    def parse_ria(self, url):
++        print("Starting Ria parser")
++        article_text = self.parse_site(url=url, className="article__block")
++        print(article_text)
++        return article_text
++
++    def parse_meduza(self, url):
+         print("Stating Meduza parser")
+-        articleText = self.parseSite(url=url, className="GeneralMaterial-container")
+-        print(articleText)
+-        return articleText
++        article_text = self.parse_site(url=url, className="GeneralMaterial-article")
++        print(article_text)
++        return article_text
+ 
+-    def parseSite(self, url, className):
++    def parse_site(self, url, className):
+         print("Stating Default parser")
+-        driver = webdriver.Chrome()
++
++        options = Options()
++        options.add_argument("--headless")
++        options.add_argument("--disable-gpu")
++        options.add_argument('srtart_maximized')
++        options.add_argument('no-sandbox')
++        options.add_argument('disable-dev-shm-usage')
++
++        driver = webdriver.Chrome(chrome_options=options)
++        # driver = webdriver.Chrome()
+         driver.get(url)
+-        allText = driver.find_element_by_class_name(className).text
++        try:
++            all_text = driver.find_element_by_class_name(className).text
++        except:
++            all_text = ""
+         driver.quit()
+-        return allText
+-
++        return all_text
+Index: .idea/workspace.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<project version=\"4\">\r\n  <component name=\"AutoImportSettings\">\r\n    <option name=\"autoReloadType\" value=\"SELECTIVE\" />\r\n  </component>\r\n  <component name=\"BranchesTreeState\">\r\n    <expand>\r\n      <path>\r\n        <item name=\"ROOT\" type=\"e8cecc67:BranchNodeDescriptor\" />\r\n        <item name=\"LOCAL_ROOT\" type=\"e8cecc67:BranchNodeDescriptor\" />\r\n      </path>\r\n      <path>\r\n        <item name=\"ROOT\" type=\"e8cecc67:BranchNodeDescriptor\" />\r\n        <item name=\"REMOTE_ROOT\" type=\"e8cecc67:BranchNodeDescriptor\" />\r\n      </path>\r\n      <path>\r\n        <item name=\"ROOT\" type=\"e8cecc67:BranchNodeDescriptor\" />\r\n        <item name=\"REMOTE_ROOT\" type=\"e8cecc67:BranchNodeDescriptor\" />\r\n        <item name=\"GROUP_NODE:origin\" type=\"e8cecc67:BranchNodeDescriptor\" />\r\n      </path>\r\n    </expand>\r\n    <select />\r\n  </component>\r\n  <component name=\"ChangeListManager\">\r\n    <list default=\"true\" id=\"d3cb9df0-cc2e-453b-b12f-4eb645d0832d\" name=\"Default Changelist\" comment=\"second commit\">\r\n      <change afterPath=\"$PROJECT_DIR$/bigrammVocab.txt\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/mainSite/fileWork.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/mainSite/settings.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/positiveLemmaSetFull.csv\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/words_vocab.txt\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/.idea/workspace.xml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/workspace.xml\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/checkpoint\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/checkpoint\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/mainSite/AllMath.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/mainSite/AllMath.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/mainSite/NeuralNetwork.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/mainSite/NeuralNetwork.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/mainSite/models.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/mainSite/models.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/mainSite/urls.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/mainSite/urls.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/mainSite/views.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/mainSite/views.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/model.data-00000-of-00001\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/model.data-00000-of-00001\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/model.index\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/model.index\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/model.meta\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/model.meta\" afterDir=\"false\" />\r\n    </list>\r\n    <option name=\"SHOW_DIALOG\" value=\"false\" />\r\n    <option name=\"HIGHLIGHT_CONFLICTS\" value=\"true\" />\r\n    <option name=\"HIGHLIGHT_NON_ACTIVE_CHANGELIST\" value=\"false\" />\r\n    <option name=\"LAST_RESOLUTION\" value=\"IGNORE\" />\r\n  </component>\r\n  <component name=\"FileTemplateManagerImpl\">\r\n    <option name=\"RECENT_TEMPLATES\">\r\n      <list>\r\n        <option value=\"HTML File\" />\r\n        <option value=\"Python Script\" />\r\n      </list>\r\n    </option>\r\n  </component>\r\n  <component name=\"Git.Settings\">\r\n    <option name=\"RECENT_GIT_ROOT_PATH\" value=\"$PROJECT_DIR$\" />\r\n  </component>\r\n  <component name=\"ProjectId\" id=\"1ksnoeDqur5FfhH8gfmIcn81MER\" />\r\n  <component name=\"ProjectViewState\">\r\n    <option name=\"hideEmptyMiddlePackages\" value=\"true\" />\r\n    <option name=\"showLibraryContents\" value=\"true\" />\r\n  </component>\r\n  <component name=\"PropertiesComponent\">\r\n    <property name=\"DefaultHtmlFileTemplate\" value=\"HTML File\" />\r\n    <property name=\"RunOnceActivity.OpenProjectViewOnStart\" value=\"true\" />\r\n    <property name=\"last_opened_file_path\" value=\"$PROJECT_DIR$/mainSite\" />\r\n    <property name=\"settings.editor.selected.configurable\" value=\"reference.settingsdialog.IDE.editor.colors\" />\r\n  </component>\r\n  <component name=\"RecentsManager\">\r\n    <key name=\"MoveFile.RECENT_KEYS\">\r\n      <recent name=\"C:\\Users\\Gleb\\Desktop\\django1\\Site1\" />\r\n      <recent name=\"C:\\Users\\Gleb\\Desktop\\django1\\Site1\\mainSite\" />\r\n    </key>\r\n    <key name=\"CopyFile.RECENT_KEYS\">\r\n      <recent name=\"C:\\Users\\Gleb\\Desktop\\django1\\Site1\\mainSite\" />\r\n      <recent name=\"C:\\Users\\Gleb\\Desktop\\django1\\Site1\\Site\" />\r\n    </key>\r\n  </component>\r\n  <component name=\"SpellCheckerSettings\" RuntimeDictionaries=\"0\" Folders=\"0\" CustomDictionaries=\"0\" DefaultDictionary=\"application-level\" UseSingleDictionary=\"true\" transferred=\"true\" />\r\n  <component name=\"SvnConfiguration\">\r\n    <configuration>C:\\Users\\Gleb\\AppData\\Roaming\\Subversion</configuration>\r\n  </component>\r\n  <component name=\"TaskManager\">\r\n    <task active=\"true\" id=\"Default\" summary=\"Default task\">\r\n      <changelist id=\"d3cb9df0-cc2e-453b-b12f-4eb645d0832d\" name=\"Default Changelist\" comment=\"\" />\r\n      <created>1606498343080</created>\r\n      <option name=\"number\" value=\"Default\" />\r\n      <option name=\"presentableId\" value=\"Default\" />\r\n      <updated>1606498343080</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00001\" summary=\"second commit\">\r\n      <created>1612966163036</created>\r\n      <option name=\"number\" value=\"00001\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00001\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1612966163036</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00002\" summary=\"second commit\">\r\n      <created>1613156081983</created>\r\n      <option name=\"number\" value=\"00002\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00002\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1613156081983</updated>\r\n    </task>\r\n    <task id=\"LOCAL-00003\" summary=\"second commit\">\r\n      <created>1613156088209</created>\r\n      <option name=\"number\" value=\"00003\" />\r\n      <option name=\"presentableId\" value=\"LOCAL-00003\" />\r\n      <option name=\"project\" value=\"LOCAL\" />\r\n      <updated>1613156088209</updated>\r\n    </task>\r\n    <option name=\"localTasksCounter\" value=\"4\" />\r\n    <servers />\r\n  </component>\r\n  <component name=\"Vcs.Log.Tabs.Properties\">\r\n    <option name=\"TAB_STATES\">\r\n      <map>\r\n        <entry key=\"MAIN\">\r\n          <value>\r\n            <State />\r\n          </value>\r\n        </entry>\r\n      </map>\r\n    </option>\r\n    <option name=\"oldMeFiltersMigrated\" value=\"true\" />\r\n  </component>\r\n  <component name=\"VcsManagerConfiguration\">\r\n    <MESSAGE value=\"second commit\" />\r\n    <option name=\"LAST_COMMIT_MESSAGE\" value=\"second commit\" />\r\n  </component>\r\n  <component name=\"WindowStateProjectService\">\r\n    <state x=\"586\" y=\"198\" key=\"#Inspections\" timestamp=\"1608497364187\">\r\n      <screen x=\"0\" y=\"0\" width=\"1920\" height=\"1040\" />\r\n    </state>\r\n    <state x=\"586\" y=\"198\" key=\"#Inspections/0.0.1920.1040/-1280.0.1280.984@0.0.1920.1040\" timestamp=\"1608497364187\" />\r\n    <state x=\"740\" y=\"275\" key=\"FileChooserDialogImpl\" timestamp=\"1608980020152\">\r\n      <screen x=\"0\" y=\"0\" width=\"1920\" height=\"1040\" />\r\n    </state>\r\n    <state x=\"740\" y=\"275\" key=\"FileChooserDialogImpl/0.0.1920.1040/-1280.0.1280.984@0.0.1920.1040\" timestamp=\"1608980020152\" />\r\n    <state x=\"976\" y=\"495\" key=\"Github.ShareDialog\" timestamp=\"1612966057295\">\r\n      <screen x=\"0\" y=\"0\" width=\"2194\" height=\"1194\" />\r\n    </state>\r\n    <state x=\"976\" y=\"495\" key=\"Github.ShareDialog/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194\" timestamp=\"1612966057295\" />\r\n    <state x=\"483\" y=\"189\" key=\"SettingsEditor\" timestamp=\"1611856695876\">\r\n      <screen x=\"0\" y=\"0\" width=\"2194\" height=\"1194\" />\r\n    </state>\r\n    <state x=\"483\" y=\"189\" key=\"SettingsEditor/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194\" timestamp=\"1611856695876\" />\r\n    <state x=\"-998\" y=\"391\" key=\"SettingsEditor/-1280.240.1280.954/0.0.2194.1194@-1280.240.1280.954\" timestamp=\"1609531058507\" />\r\n    <state x=\"461\" y=\"165\" key=\"SettingsEditor/0.0.1920.1040/-1280.0.1280.984@0.0.1920.1040\" timestamp=\"1608398882521\" />\r\n    <state x=\"690\" y=\"330\" key=\"Vcs.Push.Dialog.v2\" timestamp=\"1613156093909\">\r\n      <screen x=\"0\" y=\"0\" width=\"2194\" height=\"1194\" />\r\n    </state>\r\n    <state x=\"690\" y=\"330\" key=\"Vcs.Push.Dialog.v2/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194\" timestamp=\"1613156093909\" />\r\n    <state x=\"915\" y=\"511\" key=\"com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2\" timestamp=\"1613156065859\">\r\n      <screen x=\"0\" y=\"0\" width=\"2194\" height=\"1194\" />\r\n    </state>\r\n    <state x=\"915\" y=\"511\" key=\"com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194\" timestamp=\"1613156065859\" />\r\n    <state x=\"1161\" y=\"318\" key=\"refactoring.ChangeSignatureDialog\" timestamp=\"1608497236517\">\r\n      <screen x=\"0\" y=\"0\" width=\"1920\" height=\"1040\" />\r\n    </state>\r\n    <state x=\"1161\" y=\"318\" key=\"refactoring.ChangeSignatureDialog/0.0.1920.1040/-1280.0.1280.984@0.0.1920.1040\" timestamp=\"1608497236517\" />\r\n    <state x=\"623\" y=\"225\" key=\"search.everywhere.popup\" timestamp=\"1609014614126\">\r\n      <screen x=\"0\" y=\"0\" width=\"1920\" height=\"1040\" />\r\n    </state>\r\n    <state x=\"623\" y=\"225\" key=\"search.everywhere.popup/0.0.1920.1040/-1280.0.1280.984@0.0.1920.1040\" timestamp=\"1609014614126\" />\r\n  </component>\r\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- .idea/workspace.xml	(revision 3095116b2c1bcee525efe9d74310149b575ed8af)
++++ .idea/workspace.xml	(date 1619286780889)
+@@ -22,22 +22,19 @@
+     <select />
+   </component>
+   <component name="ChangeListManager">
+-    <list default="true" id="d3cb9df0-cc2e-453b-b12f-4eb645d0832d" name="Default Changelist" comment="second commit">
+-      <change afterPath="$PROJECT_DIR$/bigrammVocab.txt" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/mainSite/fileWork.py" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/mainSite/settings.py" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/positiveLemmaSetFull.csv" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/words_vocab.txt" afterDir="false" />
++    <list default="true" id="d3cb9df0-cc2e-453b-b12f-4eb645d0832d" name="Default Changelist" comment="new nn and refactor code">
++      <change afterPath="$PROJECT_DIR$/.idea/csv-plugin.xml" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/checkpoint" beforeDir="false" afterPath="$PROJECT_DIR$/checkpoint" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/mainSite/AllMath.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/AllMath.py" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/chromedriver.exe" beforeDir="false" afterPath="$PROJECT_DIR$/chromedriver.exe" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/mainSite/NeuralNetwork.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/NeuralNetwork.py" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/mainSite/admin.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/admin.py" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/mainSite/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/models.py" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/mainSite/parser.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/parser.py" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/mainSite/serializers.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/serializers.py" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/mainSite/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/settings.py" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/mainSite/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/urls.py" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/mainSite/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/views.py" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/model.data-00000-of-00001" beforeDir="false" afterPath="$PROJECT_DIR$/model.data-00000-of-00001" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/model.index" beforeDir="false" afterPath="$PROJECT_DIR$/model.index" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/model.meta" beforeDir="false" afterPath="$PROJECT_DIR$/model.meta" afterDir="false" />
+     </list>
+     <option name="SHOW_DIALOG" value="false" />
+     <option name="HIGHLIGHT_CONFLICTS" value="true" />
+@@ -63,6 +60,7 @@
+   <component name="PropertiesComponent">
+     <property name="DefaultHtmlFileTemplate" value="HTML File" />
+     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
++    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+     <property name="last_opened_file_path" value="$PROJECT_DIR$/mainSite" />
+     <property name="settings.editor.selected.configurable" value="reference.settingsdialog.IDE.editor.colors" />
+   </component>
+@@ -109,7 +107,14 @@
+       <option name="project" value="LOCAL" />
+       <updated>1613156088209</updated>
+     </task>
+-    <option name="localTasksCounter" value="4" />
++    <task id="LOCAL-00004" summary="new nn and refactor code">
++      <created>1614194644986</created>
++      <option name="number" value="00004" />
++      <option name="presentableId" value="LOCAL-00004" />
++      <option name="project" value="LOCAL" />
++      <updated>1614194644986</updated>
++    </task>
++    <option name="localTasksCounter" value="5" />
+     <servers />
+   </component>
+   <component name="Vcs.Log.Tabs.Properties">
+@@ -126,7 +131,8 @@
+   </component>
+   <component name="VcsManagerConfiguration">
+     <MESSAGE value="second commit" />
+-    <option name="LAST_COMMIT_MESSAGE" value="second commit" />
++    <MESSAGE value="new nn and refactor code" />
++    <option name="LAST_COMMIT_MESSAGE" value="new nn and refactor code" />
+   </component>
+   <component name="WindowStateProjectService">
+     <state x="586" y="198" key="#Inspections" timestamp="1608497364187">
+@@ -147,21 +153,22 @@
+     <state x="483" y="189" key="SettingsEditor/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194" timestamp="1611856695876" />
+     <state x="-998" y="391" key="SettingsEditor/-1280.240.1280.954/0.0.2194.1194@-1280.240.1280.954" timestamp="1609531058507" />
+     <state x="461" y="165" key="SettingsEditor/0.0.1920.1040/-1280.0.1280.984@0.0.1920.1040" timestamp="1608398882521" />
+-    <state x="690" y="330" key="Vcs.Push.Dialog.v2" timestamp="1613156093909">
++    <state x="690" y="330" key="Vcs.Push.Dialog.v2" timestamp="1614194697061">
+       <screen x="0" y="0" width="2194" height="1194" />
+     </state>
+-    <state x="690" y="330" key="Vcs.Push.Dialog.v2/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194" timestamp="1613156093909" />
+-    <state x="915" y="511" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1613156065859">
++    <state x="690" y="330" key="Vcs.Push.Dialog.v2/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194" timestamp="1614194697061" />
++    <state x="915" y="511" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1614194615104">
+       <screen x="0" y="0" width="2194" height="1194" />
+     </state>
+-    <state x="915" y="511" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194" timestamp="1613156065859" />
++    <state x="915" y="511" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194" timestamp="1614194615104" />
+     <state x="1161" y="318" key="refactoring.ChangeSignatureDialog" timestamp="1608497236517">
+       <screen x="0" y="0" width="1920" height="1040" />
+     </state>
+     <state x="1161" y="318" key="refactoring.ChangeSignatureDialog/0.0.1920.1040/-1280.0.1280.984@0.0.1920.1040" timestamp="1608497236517" />
+-    <state x="623" y="225" key="search.everywhere.popup" timestamp="1609014614126">
+-      <screen x="0" y="0" width="1920" height="1040" />
++    <state x="712" y="258" width="672" height="678" key="search.everywhere.popup" timestamp="1614240142612">
++      <screen x="0" y="0" width="2194" height="1194" />
+     </state>
++    <state x="712" y="258" width="672" height="678" key="search.everywhere.popup/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194" timestamp="1614240142612" />
+     <state x="623" y="225" key="search.everywhere.popup/0.0.1920.1040/-1280.0.1280.984@0.0.1920.1040" timestamp="1609014614126" />
+   </component>
+ </project>
+\ No newline at end of file
+Index: mainSite/NeuralNetwork.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import nltk\r\nimport tflearn\r\nimport tensorflow as tf\r\nimport numpy as np\r\nimport re\r\n\r\nfrom nltk.stem.snowball import RussianStemmer\r\nfrom nltk.tokenize import TweetTokenizer\r\nfrom collections import Counter\r\n\r\nfrom .AllMath import *\r\nfrom .fileWork import *\r\nfrom .settings import *\r\n\r\n\r\nclass NeuralNetwork:\r\n\r\n    def __init__(self):\r\n        self.model = self.build_model(learning_rate=0.75)\r\n        self.stemer = RussianStemmer()\r\n        self.regex = re.compile('[^а-яА-Я ]')\r\n        self.stem_cache = {}\r\n        self.stem_count = Counter()\r\n        self.tokenizer = TweetTokenizer()\r\n\r\n    def build_model(self, learning_rate=0.1):\r\n        tf.reset_default_graph()\r\n        net = tflearn.input_data([None, BIGRAMMS_VOCAB_SIZE + WORDS_VOCAB_SIZE])\r\n        net = tflearn.fully_connected(net, 300, activation='ReLU')\r\n        net = tflearn.fully_connected(net, 50, activation='ReLU')\r\n        net = tflearn.fully_connected(net, 2, activation='softmax')\r\n        regression = tflearn.regression(net, optimizer='Adam', learning_rate=learning_rate, loss='categorical_crossentropy')\r\n        self.model = tflearn.DNN(net)\r\n        self.model.load(\"model\")\r\n        return self.model\r\n\r\n    \"\"\"def get_stem(self, token):\r\n        stem = self.stem_cache.get(token, None)\r\n        if stem:\r\n            return stem\r\n        token = self.regex.sub('', token).lower()\r\n        stem = self.stemer.stem(token)\r\n        self.stem_cache[token] = stem\r\n        return stem\"\"\"\r\n\r\n    def get_stem(self, token):\r\n        stem = self.stem_cache.get(token, None)\r\n        if stem:\r\n            return stem\r\n        stem = self.stemmer.stem(token)\r\n        self.stem_cache[token] = stem\r\n        return stem\r\n\r\n    def get_lemma(self, token):\r\n        text = token[0] + \" \" + token[1]\r\n        stem = self.lemmasCash.get(text, None)\r\n        if stem:\r\n            return stem\r\n        # stem = myStem.lemmatize(token)\r\n        self.lemmasCash[text] = text\r\n        return text\r\n\r\n    def article_to_vector(self, article, show_unknowns=False):\r\n        vector = np.zeros(WORDS_VOCAB_SIZE + BIGRAMMS_VOCAB_SIZE, dtype=np.int_)\r\n        for token in self.tokenizer.tokenize(article):\r\n            word_idx = words_token_2_idx.get(token, None)\r\n            if word_idx is not None:\r\n                vector[word_idx] = 1\r\n            elif show_unknowns:\r\n                print(\"Unknown token: {}\". format(token))\r\n        for token in nltk.ngrams(nltk.word_tokenize(article), 2):\r\n            stem = token[0] + ' ' + token[1]\r\n            biramm_idx = biramm_token_2_idx.get(stem, None)\r\n            if biramm_idx is not None:\r\n                vector[biramm_idx + WORDS_VOCAB_SIZE] = 1\r\n            elif show_unknowns:\r\n                print(\"Unknown token: {}\".format(token))\r\n        return vector\r\n\r\n    def article_to_vector_clearly(self, article, count_unknowns=True):\r\n        vector = np.zeros(WORDS_VOCAB_SIZE + BIGRAMMS_VOCAB_SIZE, dtype=np.int_)\r\n        unknown_word_count = 0\r\n        unknown_word_sum = 0\r\n        badWordsCounter = 0\r\n\r\n        for token in self.tokenizer.tokenize(article):\r\n            #badWord = badWordsDict.get(stem, None)\r\n            badWord = badWordsDict.get(token, None)\r\n            word_idx = words_token_2_idx.get(token, None)\r\n            if badWord is not None:\r\n                badWordsCounter += 1\r\n            if word_idx is not None:\r\n                vector[word_idx] = 1\r\n            elif count_unknowns:\r\n                #tone = word_token.get(stem, None)\r\n                tone = word_token.get(token, None)\r\n                if tone:\r\n                    unknown_word_count += 1\r\n                    if tone == 'NEUT':\r\n                        unknown_word_sum += 0.5\r\n                    elif tone == 'PSTV':\r\n                        unknown_word_sum += 1\r\n                    elif tone == 'NGTV':\r\n                        unknown_word_sum += 0\r\n\r\n        for token in nltk.ngrams(nltk.word_tokenize(article), 2):\r\n            stem = token[0] + ' ' + token[1]\r\n            biramm_idx = biramm_token_2_idx.get(stem, None)\r\n            if biramm_idx is not None:\r\n                vector[biramm_idx + WORDS_VOCAB_SIZE] = 1\r\n\r\n        if unknown_word_count == 0:\r\n            return [vector, None, badWordsCounter]\r\n        return [vector, unknown_word_sum / unknown_word_count, badWordsCounter]\r\n\r\n    def test_tweet(self, article):\r\n        tweet_vector = self.article_to_vector(article, False)\r\n        positive_prob = self.model.predict([tweet_vector])[0][1]\r\n\r\n        if 0.35 < positive_prob < 0.66:\r\n            return \"нейтрально\"\r\n        elif positive_prob > 0.65:\r\n            return \"позитивно  \" + str(int(((positive_prob * 100 - 65) / 35) * 100))\r\n        else:\r\n            return \"негативно  \" + str(int(((0.36 - positive_prob) / 0.36) * (-100)))\r\n\r\n    def test_article_better(self, title, description):\r\n        title_vector = self.article_to_vector(title, True)\r\n        description_vector = self.article_to_vector(description, True)\r\n        title_positive_prob = self.model.predict([title_vector])[0][1]\r\n        description_positive_prob = self.model.predict([description_vector])[0][1]\r\n\r\n        positive_prob = modifyProbe(probe_from_title=title_positive_prob, probe_from_desc=description_positive_prob)\r\n\r\n        if 0.35 < positive_prob < 0.66:\r\n            return \"нейтрально\"\r\n        elif positive_prob > 0.65:\r\n            return \"позитивно  \" + str(int(((positive_prob * 100 - 65) / 35) * 100))\r\n        else:\r\n            return \"негативно  \" + str(int(((0.36 - positive_prob) / 0.36) * (-100)))\r\n\r\n    def test_article_the_best(self, title, description):\r\n        title_vector = self.article_to_vector_clearly(title, True)\r\n        description_vector = self.article_to_vector_clearly(description, True)\r\n        title_positive_prob = self.model.predict([title_vector[0]])[0][1]\r\n        description_positive_prob = self.model.predict([description_vector[0]])[0][1]\r\n        positive_prob = modifyProbe(probe_from_title=title_positive_prob, probe_from_desc=description_positive_prob)\r\n\r\n        if title_vector[1] is not None and description_vector[1] is not None:\r\n            positive_prob = multipleAnswer(positive_prob, (title_vector[1] + description_vector[1]) / 2)\r\n        elif title_vector[1] is not None and description_vector[1] is None:\r\n            positive_prob = multipleAnswer(positive_prob, (title_vector[1]) / 2)\r\n        elif title_vector[1] is None and description_vector[1] is not None:\r\n            positive_prob = multipleAnswer(positive_prob, (description_vector[1]) / 2)\r\n\r\n        if 0.35 < positive_prob < 0.66:\r\n            return [\"нейтрально\", \"info\"]\r\n        elif positive_prob > 0.65:\r\n            return [\"позитивно  \", \"success\"]\r\n        else:\r\n            return [\"негативно  \", \"danger\"]\r\n\r\n    def test_article_the_best_modern(self, title, description):\r\n        title_vector = self.article_to_vector_clearly(title, True)\r\n        description_vector = self.article_to_vector_clearly(description, True)\r\n        title_positive_prob = self.model.predict([title_vector[0]])[0][1]\r\n        description_positive_prob = self.model.predict([description_vector[0]])[0][1]\r\n        positive_prob = modifyProbe(probe_from_title=title_positive_prob, probe_from_desc=description_positive_prob)\r\n        if title_vector[2] > 0:\r\n            positive_prob = positive_prob * (1 - WEIGHT_OF_THE_WORSE_WORDS)\r\n        if title_vector[1] is not None and description_vector[1] is not None:\r\n            positive_prob = multipleAnswer(positive_prob, (title_vector[1] + description_vector[1]) / 2)\r\n        elif title_vector[1] is not None and description_vector[1] is None:\r\n            positive_prob = multipleAnswer(positive_prob, (title_vector[1]) / 2)\r\n        elif title_vector[1] is None and description_vector[1] is not None:\r\n            positive_prob = multipleAnswer(positive_prob, (description_vector[1]) / 2)\r\n\r\n        if 0.35 < positive_prob < 0.66:\r\n            return [\"нейтрально\", \"info\"]\r\n        elif positive_prob > 0.65:\r\n            return [\"позитивно  \" + str(int(((positive_prob * 100 - 65) / 35) * 100)), \"success\"]\r\n        else:\r\n            return [\"негативно  \" + str(int(((0.36 - positive_prob) / 0.36) * (-100))), \"danger\"]\r\n\r\n    def test_article_the_best_api(self, title, description):\r\n        title_vector = self.article_to_vector_clearly(title, True)\r\n        description_vector = self.article_to_vector_clearly(description, True)\r\n        title_positive_prob = self.model.predict([title_vector[0]])[0][1]\r\n        description_positive_prob = self.model.predict([description_vector[0]])[0][1]\r\n\r\n        positive_prob = modifyProbe(probe_from_title=title_positive_prob, probe_from_desc=description_positive_prob)\r\n\r\n        if title_vector[1] is not None and description_vector[1] is not None:\r\n            positive_prob = multipleAnswer(positive_prob, (title_vector[1] + description_vector[1]) / 2)\r\n        elif title_vector[1] is not None and description_vector[1] is None:\r\n            positive_prob = multipleAnswer(positive_prob, (title_vector[1]) / 2)\r\n        elif title_vector[1] is None and description_vector[1] is not None:\r\n            positive_prob = multipleAnswer(positive_prob, (description_vector[1]) / 2)\r\n\r\n        return positive_prob\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- mainSite/NeuralNetwork.py	(revision 3095116b2c1bcee525efe9d74310149b575ed8af)
++++ mainSite/NeuralNetwork.py	(date 1614239504065)
+@@ -166,6 +166,10 @@
+         title_positive_prob = self.model.predict([title_vector[0]])[0][1]
+         description_positive_prob = self.model.predict([description_vector[0]])[0][1]
+         positive_prob = modifyProbe(probe_from_title=title_positive_prob, probe_from_desc=description_positive_prob)
++        print(description)
++        print(title_positive_prob)
++        print(description_positive_prob)
++        print("---------------------------------------------------------------------")
+         if title_vector[2] > 0:
+             positive_prob = positive_prob * (1 - WEIGHT_OF_THE_WORSE_WORDS)
+         if title_vector[1] is not None and description_vector[1] is not None:
