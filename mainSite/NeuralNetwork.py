@@ -166,6 +166,10 @@ class NeuralNetwork:
         title_positive_prob = self.model.predict([title_vector[0]])[0][1]
         description_positive_prob = self.model.predict([description_vector[0]])[0][1]
         positive_prob = modifyProbe(probe_from_title=title_positive_prob, probe_from_desc=description_positive_prob)
+        print(description)
+        print(title_positive_prob)
+        print(description_positive_prob)
+        print("---------------------------------------------------------------------")
         if title_vector[2] > 0:
             positive_prob = positive_prob * (1 - WEIGHT_OF_THE_WORSE_WORDS)
         if title_vector[1] is not None and description_vector[1] is not None:

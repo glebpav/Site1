@@ -13,4 +13,5 @@ WORDS_VOCAB_PATH = 'words_vocab.txt'
 BIGRAMMS_VOCAB_PATH = 'bigrammVocab.txt'
 BAD_WORDS_VOCAB_PATH = 'badWordsVocab.txt'
 
+DEFAULT_SITES_FOR_MOBILE = "Lenta;РИА Новости;РБК;Meduza"   # список сайтов, добавляемых каждому новому пользователю
 sites = {"Lenta", "РИА Новости", "РБК", "Meduza"}  # список новостных ресурсов

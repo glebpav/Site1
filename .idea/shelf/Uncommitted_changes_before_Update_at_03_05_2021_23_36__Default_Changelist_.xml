@@ -1,0 +1,14 @@
+<changelist name="Uncommitted_changes_before_Update_at_03_05_2021_23_36_[Default_Changelist]" date="1620074168009" recycled="true" deleted="true">
+  <option name="PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_03_05_2021_23_36_[Default_Changelist]/shelved.patch" />
+  <option name="DESCRIPTION" value="Uncommitted changes before Update at 03.05.2021 23:36 [Default Changelist]" />
+  <binary>
+    <option name="BEFORE_PATH" value="db.sqlite3" />
+    <option name="AFTER_PATH" value="db.sqlite3" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_03_05_2021_23_36_[Default_Changelist]/db.sqlite3" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="chromedriver.exe" />
+    <option name="AFTER_PATH" value="chromedriver.exe" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_03_05_2021_23_36_[Default_Changelist]/chromedriver.exe" />
+  </binary>
+</changelist>

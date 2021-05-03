@@ -1,24 +1,42 @@
+from selenium.webdriver.chrome.options import Options
 from selenium import webdriver
 
 
-class SeleniumParser():
+class SeleniumParser:
 
-    def parseLenta(self, url):
-        articleText = self.parseSite(url=url, className="js-topic__text")
-        print(articleText)
-        return articleText.text
+    def parse_lenta(self, url):
+        article_text = self.parse_site(url=url, className="js-topic__text")
+        print(article_text)
+        return article_text
 
-    def parseMeduza(self, url):
+    def parse_ria(self, url):
+        print("Starting Ria parser")
+        article_text = self.parse_site(url=url, className="article__block")
+        print(article_text)
+        return article_text
+
+    def parse_meduza(self, url):
         print("Stating Meduza parser")
-        articleText = self.parseSite(url=url, className="GeneralMaterial-container")
-        print(articleText)
-        return articleText
+        article_text = self.parse_site(url=url, className="GeneralMaterial-article")
+        print(article_text)
+        return article_text
 
-    def parseSite(self, url, className):
+    def parse_site(self, url, className):
         print("Stating Default parser")
-        driver = webdriver.Chrome()
-        driver.get(url)
-        allText = driver.find_element_by_class_name(className).text
-        driver.quit()
-        return allText
 
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("--disable-gpu")
+        options.add_argument('srtart_maximized')
+        options.add_argument('no-sandbox')
+        options.add_argument('disable-dev-shm-usage')
+
+        driver = webdriver.Chrome(chrome_options=options)
+        # driver = webdriver.Chrome()
+        driver.get(url)
+        try:
+            all_text = driver.find_element_by_class_name(className).text
+        except:
+            all_text = ""
+        driver.quit()
+        return all_text

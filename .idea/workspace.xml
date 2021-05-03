@@ -22,22 +22,19 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d3cb9df0-cc2e-453b-b12f-4eb645d0832d" name="Default Changelist" comment="second commit">
-      <change afterPath="$PROJECT_DIR$/bigrammVocab.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mainSite/fileWork.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mainSite/settings.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/positiveLemmaSetFull.csv" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/words_vocab.txt" afterDir="false" />
+    <list default="true" id="d3cb9df0-cc2e-453b-b12f-4eb645d0832d" name="Default Changelist" comment="new nn and refactor code">
+      <change afterPath="$PROJECT_DIR$/.idea/csv-plugin.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/checkpoint" beforeDir="false" afterPath="$PROJECT_DIR$/checkpoint" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mainSite/AllMath.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/AllMath.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chromedriver.exe" beforeDir="false" afterPath="$PROJECT_DIR$/chromedriver.exe" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mainSite/NeuralNetwork.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/NeuralNetwork.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mainSite/admin.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/admin.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mainSite/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mainSite/parser.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/parser.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mainSite/serializers.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/serializers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mainSite/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/settings.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mainSite/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/urls.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mainSite/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainSite/views.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model.data-00000-of-00001" beforeDir="false" afterPath="$PROJECT_DIR$/model.data-00000-of-00001" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model.index" beforeDir="false" afterPath="$PROJECT_DIR$/model.index" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model.meta" beforeDir="false" afterPath="$PROJECT_DIR$/model.meta" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -63,6 +60,7 @@
   <component name="PropertiesComponent">
     <property name="DefaultHtmlFileTemplate" value="HTML File" />
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/mainSite" />
     <property name="settings.editor.selected.configurable" value="reference.settingsdialog.IDE.editor.colors" />
   </component>
@@ -109,7 +107,14 @@
       <option name="project" value="LOCAL" />
       <updated>1613156088209</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="new nn and refactor code">
+      <created>1614194644986</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1614194644986</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -126,7 +131,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="second commit" />
-    <option name="LAST_COMMIT_MESSAGE" value="second commit" />
+    <MESSAGE value="new nn and refactor code" />
+    <option name="LAST_COMMIT_MESSAGE" value="new nn and refactor code" />
   </component>
   <component name="WindowStateProjectService">
     <state x="586" y="198" key="#Inspections" timestamp="1608497364187">
@@ -147,21 +153,22 @@
     <state x="483" y="189" key="SettingsEditor/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194" timestamp="1611856695876" />
     <state x="-998" y="391" key="SettingsEditor/-1280.240.1280.954/0.0.2194.1194@-1280.240.1280.954" timestamp="1609531058507" />
     <state x="461" y="165" key="SettingsEditor/0.0.1920.1040/-1280.0.1280.984@0.0.1920.1040" timestamp="1608398882521" />
-    <state x="690" y="330" key="Vcs.Push.Dialog.v2" timestamp="1613156093909">
+    <state x="690" y="330" key="Vcs.Push.Dialog.v2" timestamp="1614194697061">
       <screen x="0" y="0" width="2194" height="1194" />
     </state>
-    <state x="690" y="330" key="Vcs.Push.Dialog.v2/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194" timestamp="1613156093909" />
-    <state x="915" y="511" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1613156065859">
+    <state x="690" y="330" key="Vcs.Push.Dialog.v2/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194" timestamp="1614194697061" />
+    <state x="915" y="511" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1614194615104">
       <screen x="0" y="0" width="2194" height="1194" />
     </state>
-    <state x="915" y="511" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194" timestamp="1613156065859" />
+    <state x="915" y="511" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194" timestamp="1614194615104" />
     <state x="1161" y="318" key="refactoring.ChangeSignatureDialog" timestamp="1608497236517">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="1161" y="318" key="refactoring.ChangeSignatureDialog/0.0.1920.1040/-1280.0.1280.984@0.0.1920.1040" timestamp="1608497236517" />
-    <state x="623" y="225" key="search.everywhere.popup" timestamp="1609014614126">
-      <screen x="0" y="0" width="1920" height="1040" />
+    <state x="712" y="258" width="672" height="678" key="search.everywhere.popup" timestamp="1614240142612">
+      <screen x="0" y="0" width="2194" height="1194" />
     </state>
+    <state x="712" y="258" width="672" height="678" key="search.everywhere.popup/-1280.0.1280.954/0.0.2194.1194@0.0.2194.1194" timestamp="1614240142612" />
     <state x="623" y="225" key="search.everywhere.popup/0.0.1920.1040/-1280.0.1280.984@0.0.1920.1040" timestamp="1609014614126" />
   </component>
 </project>
